@@ -1,22 +1,19 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
-from config.config import DB_HOST, DB_NAME, DB_PASS, DB_PORT, DB_USER
+from config.config import DATABASE_URL
+from models.base import Base
 
-DATABASE_URL = (
-    f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
+
+Session = async_sessionmaker(
+    bind=engine, class_=AsyncSession, expire_on_commit=False
 )
 
 
-class Base(DeclarativeBase):
-    pass
-
-
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
-
-Session = sessionmaker(bind=engine)
-session = Session()
-
-
-def create_db():
-    Base.metadata.create_all(engine)
+async def create_db() -> None:
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
